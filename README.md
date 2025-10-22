@@ -85,7 +85,24 @@ You'll see: `Verbose started. Press <ctrl>+<alt>+v to toggle recording.`
 - Uses kernel-level input (evdev + ydotool) - works on both X11 and Wayland
 
 ### Running on startup:
-Add to your startup applications or create a systemd user service (see CLAUDE.md for details).
+
+To automatically start Verbose when you log in, run the installation script:
+
+```bash
+./install-service.sh
+```
+
+This installs Verbose as a systemd user service. Useful commands:
+- `systemctl --user status verbose` - Check status
+- `systemctl --user stop verbose` - Stop service
+- `systemctl --user restart verbose` - Restart service
+- `systemctl --user disable verbose` - Disable auto-start
+- `journalctl --user -u verbose -f` - View logs
+
+To uninstall:
+```bash
+./uninstall-service.sh
+```
 
 **Requirements:** Python 3.6+, input group membership
 
