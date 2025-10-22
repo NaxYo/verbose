@@ -1,0 +1,18 @@
+# Verbose Configuration - Sample File
+# Copy this file to config.yaml and customize for your setup
+# Usage: cp config.sample.yaml config.yaml
+
+# Hotkey to toggle recording (using pynput key names)
+# Examples: <ctrl>+<alt>+v, <shift>+<f9>, etc.
+hotkey: "<ctrl>+<alt>+v"
+
+# Whisper model to use (tiny, base, small, medium, large)
+# Smaller = faster but less accurate
+whisper_model: "base"
+
+# Path to whisper.cpp binary
+whisper_cpp_path: "./whisper.cpp/build/bin/whisper-cli"
+
+# Audio settings
+sample_rate: 16000
+channels: 1

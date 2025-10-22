@@ -1,0 +1,4 @@
+pynput
+pyaudio
+pyyaml
+PyGObject

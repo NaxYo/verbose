@@ -1,0 +1,25 @@
+# Local configuration files (user-specific, use .sample.yaml as templates)
+config.yaml
+dictionary.yaml
+shortcuts.yaml
+
+# whisper.cpp (built locally)
+whisper.cpp/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Temporary audio files
+*.wav
+*.wav.txt

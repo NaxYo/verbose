@@ -1,0 +1,13 @@
+# Dictionary - Sample File
+# Copy this file to dictionary.yaml and add your word corrections
+# Usage: cp dictionary.sample.yaml dictionary.yaml
+
+# Fixes for commonly misinterpreted words
+# The model's output will have these words corrected
+# Format: "wrong": "correct"
+# Uses word-boundary matching (won't replace partial words)
+
+# Example: Fix company/product names
+"designer": "Desygner"
+# "postgres": "PostgreSQL"
+# "react": "React"
