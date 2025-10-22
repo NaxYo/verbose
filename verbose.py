@@ -371,12 +371,10 @@ class VerboseDaemon:
     def insert_text(self, text):
         """Insert text using ydotool (works with all applications including terminals)"""
         try:
-            # Small delay to ensure focus is correct
-            subprocess.run(['sleep', '0.3'])
-
             # Use ydotool to type text (works at kernel level like evdev)
             # Store process so it can be killed if cancelled
-            self.typing_process = subprocess.Popen(['ydotool', 'type', text])
+            # Use --key-delay 5 for faster typing (default is 12ms, 5ms is a good balance)
+            self.typing_process = subprocess.Popen(['ydotool', 'type', '--key-delay', '5', text])
             self.typing_process.wait()
             self.typing_process = None
 
