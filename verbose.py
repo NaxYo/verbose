@@ -31,9 +31,11 @@ class VerboseDaemon:
         self.shortcuts = self.load_shortcuts()
         self.is_recording = False
         self.is_processing = False
+        self.is_cancelled = False
         self.audio_frames = []
         self.audio = pyaudio.PyAudio()
         self.stream = None
+        self.typing_process = None  # Track ydotool process for cancellation
 
         # Icon paths (relative to script directory)
         script_dir = Path(__file__).parent
@@ -163,9 +165,36 @@ class VerboseDaemon:
         else:
             self.start_recording()
 
+    def cancel_operation(self):
+        """Cancel current operation (recording, processing, or typing)"""
+        self.is_cancelled = True
+
+        # If currently recording, stop it
+        if self.is_recording:
+            self.is_recording = False
+            if self.stream:
+                self.stream.stop_stream()
+                self.stream.close()
+                self.stream = None
+            self.audio_frames = []
+
+        # If currently typing, kill the ydotool process
+        if self.typing_process:
+            try:
+                self.typing_process.kill()
+                self.typing_process.wait(timeout=1)
+            except:
+                pass
+            self.typing_process = None
+
+        # Return to idle state (processing will finish in background but result will be ignored)
+        self.is_processing = False
+        self.indicator.set_icon_full("idle", "")
+
     def start_recording(self):
         """Start recording audio"""
         self.is_recording = True
+        self.is_cancelled = False  # Reset cancel flag when starting new recording
         self.audio_frames = []
 
         # Update indicator to recording state (red)
@@ -210,6 +239,11 @@ class VerboseDaemon:
 
     def process_audio(self):
         """Transcribe audio and insert text"""
+        # Check if cancelled before starting
+        if self.is_cancelled:
+            self.is_processing = False
+            return
+
         # Save audio to temporary WAV file
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as f:
             wav_path = f.name
@@ -222,31 +256,43 @@ class VerboseDaemon:
             wf.writeframes(b''.join(self.audio_frames))
             wf.close()
 
+            # Check if cancelled before transcribing
+            if self.is_cancelled:
+                return
+
             # Transcribe with whisper.cpp
             text = self.transcribe(wav_path)
 
-            if text:
-                # Apply dictionary corrections (fix misinterpreted words)
-                text = self.apply_dictionary(text)
+            # Check if cancelled after transcription
+            if self.is_cancelled or not text:
+                return
 
-                # Apply shortcuts (expand spoken phrases)
-                text = self.apply_shortcuts(text)
+            # Apply dictionary corrections (fix misinterpreted words)
+            text = self.apply_dictionary(text)
 
-                # Remove newlines if configured
-                if self.config.get('avoid_newlines', False):
-                    text = text.replace('\n', ' ').replace('\r', ' ')
+            # Apply shortcuts (expand spoken phrases)
+            text = self.apply_shortcuts(text)
 
-                # Insert text at cursor
-                self.insert_text(text)
+            # Remove newlines if configured
+            if self.config.get('avoid_newlines', False):
+                text = text.replace('\n', ' ').replace('\r', ' ')
+
+            # Check if cancelled before inserting text
+            if self.is_cancelled:
+                return
+
+            # Insert text at cursor
+            self.insert_text(text)
 
         finally:
             # Clean up temp file
             if os.path.exists(wav_path):
                 os.unlink(wav_path)
 
-            # Return to idle state
-            self.is_processing = False
-            GLib.idle_add(lambda: self.indicator.set_icon_full("idle", ""))
+            # Return to idle state (only if not already cancelled)
+            if not self.is_cancelled:
+                self.is_processing = False
+                GLib.idle_add(lambda: self.indicator.set_icon_full("idle", ""))
 
     def transcribe(self, audio_file):
         """Transcribe audio using whisper.cpp"""
@@ -329,12 +375,17 @@ class VerboseDaemon:
             subprocess.run(['sleep', '0.3'])
 
             # Use ydotool to type text (works at kernel level like evdev)
-            subprocess.run(['ydotool', 'type', text], check=True)
+            # Store process so it can be killed if cancelled
+            self.typing_process = subprocess.Popen(['ydotool', 'type', text])
+            self.typing_process.wait()
+            self.typing_process = None
 
         except subprocess.CalledProcessError as e:
             print("Text insertion failed: " + str(e))
+            self.typing_process = None
         except Exception as e:
             print("Text insertion error: " + str(e))
+            self.typing_process = None
 
     def listen_for_hotkey(self):
         """Background thread to listen for hotkey presses using evdev"""
@@ -350,6 +401,9 @@ class VerboseDaemon:
                         if event.code == self.hotkey_code:
                             # Use GLib to call toggle_recording in main thread
                             GLib.idle_add(self.toggle_recording)
+                        elif event.code == ecodes.KEY_ESC:
+                            # Escape key cancels current operation
+                            GLib.idle_add(self.cancel_operation)
         except Exception as e:
             print("Hotkey listener error: " + str(e))
 

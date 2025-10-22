@@ -90,6 +90,7 @@
 **Pros**: Captures keys before any application can intercept them
 **Cons**: Requires user to be in `input` group
 **Alternative considered**: pynput (rejected - can't capture keys when terminals have focus)
+**Escape key support**: Always listens for ESC to cancel any operation (recording, processing, typing)
 
 #### 6. AppIndicator3 for system tray
 **Rationale**: Standard Gnome/Ubuntu tray integration. Cross-desktop compatible.
