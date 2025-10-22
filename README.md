@@ -20,10 +20,14 @@ A simple voice-to-text daemon for Linux. Press a hotkey, speak, press again - te
 1. Install system dependencies:
 ```bash
 # Runtime dependencies
-sudo apt install -y portaudio19-dev xdotool gir1.2-appindicator3-0.1
+sudo apt install -y portaudio19-dev ydotool gir1.2-appindicator3-0.1
 
 # Build dependencies for whisper.cpp
 sudo apt install -y cmake build-essential
+
+# Add your user to the input group (for keyboard/ydotool access)
+sudo usermod -a -G input $USER
+# Then log out and back in for the group change to take effect
 ```
 
 2. Install Python 3 dependencies:
@@ -73,12 +77,12 @@ You'll see: `Verbose started. Press <ctrl>+<alt>+v to toggle recording.`
 - Speak for at least 2-3 seconds for best results
 - The transcription happens in the background (non-blocking)
 - Works in any application: terminal, browser, text editor, etc.
-- Use X11 (xdotool) - Wayland support may vary
+- Uses kernel-level input (evdev + ydotool) - works on both X11 and Wayland
 
 ### Running on startup:
 Add to your startup applications or create a systemd user service (see CLAUDE.md for details).
 
-**Requirements:** Python 3.6+, X11 (for xdotool text insertion)
+**Requirements:** Python 3.6+, input group membership
 
 ## Configuration
 
@@ -91,6 +95,7 @@ Copy from `config.sample.yaml` and edit:
 - `whisper_cpp_path`: Path to whisper.cpp binary (default: `./whisper.cpp/build/bin/whisper-cli`)
 - `sample_rate`: Audio sample rate (default: `16000`)
 - `channels`: Audio channels (default: `1`)
+- `avoid_newlines`: Strip newlines from output (default: `false`) - useful for CLI tools like Claude Code
 
 ### dictionary.yaml
 Copy from `dictionary.sample.yaml` to fix words the model commonly misinterprets:
@@ -112,9 +117,10 @@ Copy from `shortcuts.sample.yaml` to add phrase expansions:
 These are normal and can be ignored. They're just audio system probing messages.
 
 ### No text appears
-- Ensure you're using X11 (check with `echo $XDG_SESSION_TYPE`)
-- For Wayland, try using `ydotool` instead of `xdotool` (requires code modification)
+- Ensure you're in the `input` group: `groups | grep input`
+- If not, run `sudo usermod -a -G input $USER` and log out/in
 - Make sure you spoke for at least 2-3 seconds
+- Check that ydotool is installed: `which ydotool`
 
 ### Model not found error
 - Run `./models/download-ggml-model.sh base` in the whisper.cpp directory
@@ -132,9 +138,9 @@ MIT License - feel free to modify and distribute.
 ## Contributing
 
 This is a minimal MVP. Contributions welcome for:
-- Wayland support (ydotool integration)
 - Better error handling and logging
 - Performance optimizations
 - Additional text expansion features
+- Multi-language support
 
 See CLAUDE.md for development documentation.

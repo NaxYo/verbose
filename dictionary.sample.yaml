@@ -8,6 +8,6 @@
 # Uses word-boundary matching (won't replace partial words)
 
 # Example: Fix company/product names
-"designer": "Desygner"
+"cloud code": "claude code"
 # "postgres": "PostgreSQL"
 # "react": "React"

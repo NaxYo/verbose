@@ -16,3 +16,7 @@ whisper_cpp_path: "./whisper.cpp/build/bin/whisper-cli"
 # Audio settings
 sample_rate: 16000
 channels: 1
+
+# Strip newlines from transcription output (useful for CLI tools like Claude Code)
+# When enabled, newlines are replaced with spaces to keep everything on one line
+avoid_newlines: false

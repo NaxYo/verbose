@@ -14,7 +14,8 @@ import signal
 from pathlib import Path
 
 import pyaudio
-from pynput import keyboard
+import evdev
+from evdev import ecodes
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('AppIndicator3', '0.1')
@@ -42,11 +43,10 @@ class VerboseDaemon:
         self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
         self.indicator.set_menu(self.build_menu())
 
-        # Hotkey listener
-        self.hotkey = self.parse_hotkey(self.config['hotkey'])
-        self.listener = keyboard.GlobalHotKeys({
-            self.hotkey: self.toggle_recording
-        })
+        # Find keyboard device for evdev
+        self.keyboard_device = self.find_keyboard()
+        self.hotkey_code = self.parse_hotkey(self.config['hotkey'])
+        self.hotkey_thread = None
 
     def load_config(self):
         """Load configuration from config.yaml or use defaults"""
@@ -56,7 +56,8 @@ class VerboseDaemon:
             'whisper_model': 'base',
             'whisper_cpp_path': './whisper.cpp/build/bin/whisper-cli',
             'sample_rate': 16000,
-            'channels': 1
+            'channels': 1,
+            'avoid_newlines': False
         }
 
         if config_path.exists():
@@ -92,10 +93,48 @@ class VerboseDaemon:
                 print("Error loading shortcuts.yaml, skipping: " + str(e))
         return {}
 
+    def find_keyboard(self):
+        """Find keyboard device using evdev"""
+        devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
+        for device in devices:
+            caps = device.capabilities()
+            if ecodes.EV_KEY in caps:
+                keys = caps[ecodes.EV_KEY]
+                # Check if it has letter keys (actual keyboard)
+                if ecodes.KEY_A in keys or ecodes.KEY_Q in keys:
+                    print("Using keyboard: " + device.name)
+                    return device
+        print("Warning: No keyboard device found!")
+        return None
+
     def parse_hotkey(self, hotkey_str):
-        """Convert hotkey string to pynput format"""
-        # Simple parsing - handles <ctrl>+<alt>+key format
-        return hotkey_str
+        """Convert hotkey string like '<f9>' or '<alt>+<space>' to evdev key code"""
+        # Map common key names to evdev codes
+        key_map = {
+            'f1': ecodes.KEY_F1, 'f2': ecodes.KEY_F2, 'f3': ecodes.KEY_F3,
+            'f4': ecodes.KEY_F4, 'f5': ecodes.KEY_F5, 'f6': ecodes.KEY_F6,
+            'f7': ecodes.KEY_F7, 'f8': ecodes.KEY_F8, 'f9': ecodes.KEY_F9,
+            'f10': ecodes.KEY_F10, 'f11': ecodes.KEY_F11, 'f12': ecodes.KEY_F12,
+            'space': ecodes.KEY_SPACE, 'enter': ecodes.KEY_ENTER,
+            'tab': ecodes.KEY_TAB, 'esc': ecodes.KEY_ESC,
+            'caps_lock': ecodes.KEY_CAPSLOCK, 'scroll_lock': ecodes.KEY_SCROLLLOCK,
+            'pause': ecodes.KEY_PAUSE, 'print_screen': ecodes.KEY_SYSRQ,
+            'ctrl': ecodes.KEY_LEFTCTRL, 'alt': ecodes.KEY_LEFTALT,
+            'shift': ecodes.KEY_LEFTSHIFT, 'cmd': ecodes.KEY_LEFTMETA,
+        }
+
+        # Parse simple format: <key> or <mod>+<key>
+        parts = hotkey_str.replace('<', '').replace('>', '').lower().split('+')
+
+        if len(parts) == 1:
+            # Single key
+            key_name = parts[0]
+            return key_map.get(key_name, ecodes.KEY_F9)  # Default to F9
+        else:
+            # For now, just return the last key (the trigger key)
+            # TODO: Handle modifier keys properly
+            key_name = parts[-1]
+            return key_map.get(key_name, ecodes.KEY_F9)
 
     def build_menu(self):
         """Build system tray menu"""
@@ -181,6 +220,10 @@ class VerboseDaemon:
                 # Apply shortcuts (expand spoken phrases)
                 text = self.apply_shortcuts(text)
 
+                # Remove newlines if configured
+                if self.config.get('avoid_newlines', False):
+                    text = text.replace('\n', ' ').replace('\r', ' ')
+
                 # Insert text at cursor
                 self.insert_text(text)
 
@@ -264,23 +307,43 @@ class VerboseDaemon:
         return text
 
     def insert_text(self, text):
-        """Insert text at current cursor position using xdotool"""
+        """Insert text using ydotool (works with all applications including terminals)"""
         try:
             # Small delay to ensure focus is correct
-            subprocess.run(['sleep', '0.1'])
+            subprocess.run(['sleep', '0.3'])
 
-            # Use xdotool to type the text
-            subprocess.run(['xdotool', 'type', '--', text])
+            # Use ydotool to type text (works at kernel level like evdev)
+            subprocess.run(['ydotool', 'type', text], check=True)
 
+        except subprocess.CalledProcessError as e:
+            print("Text insertion failed: " + str(e))
         except Exception as e:
             print("Text insertion error: " + str(e))
+
+    def listen_for_hotkey(self):
+        """Background thread to listen for hotkey presses using evdev"""
+        if not self.keyboard_device:
+            return
+
+        try:
+            for event in self.keyboard_device.read_loop():
+                if event.type == ecodes.EV_KEY:
+                    key_event = evdev.categorize(event)
+                    # Only trigger on key press (not release)
+                    if key_event.keystate == evdev.KeyEvent.key_down:
+                        if event.code == self.hotkey_code:
+                            # Use GLib to call toggle_recording in main thread
+                            GLib.idle_add(self.toggle_recording)
+        except Exception as e:
+            print("Hotkey listener error: " + str(e))
 
     def run(self):
         """Start the daemon"""
         print("Verbose started. Press " + self.config['hotkey'] + " to toggle recording.")
 
-        # Start hotkey listener
-        self.listener.start()
+        # Start hotkey listener in background thread
+        self.hotkey_thread = threading.Thread(target=self.listen_for_hotkey, daemon=True)
+        self.hotkey_thread.start()
 
         # Run GTK main loop
         try:
@@ -297,7 +360,10 @@ class VerboseDaemon:
             self.stream.close()
 
         self.audio.terminate()
-        self.listener.stop()
+
+        if self.keyboard_device:
+            self.keyboard_device.close()
+
         Gtk.main_quit()
 
 

@@ -64,7 +64,8 @@
 5. **Text processing**:
    - Dictionary corrections applied (word-level regex)
    - Shortcuts expanded (phrase-level string replacement)
-6. **Text insertion** → xdotool simulates typing at cursor position
+   - Newlines stripped if `avoid_newlines` is enabled (prevents multi-line execution in CLI tools)
+6. **Text insertion** → ydotool simulates typing at cursor position
 7. **Cleanup** → Temporary files deleted
 
 ### Key Design Decisions
@@ -78,18 +79,31 @@
 #### 3. Temporary WAV files
 **Rationale**: whisper.cpp expects file input. Could optimize with stdin in future.
 
-#### 4. xdotool for text insertion
-**Pros**: Universal, works everywhere on X11
-**Cons**: X11 only (Wayland needs ydotool)
-**Alternative considered**: Clipboard paste (rejected - overwrites user clipboard)
+#### 4. ydotool for text insertion
+**Rationale**: Kernel-level input simulation, works everywhere (X11, Wayland, terminals)
+**Pros**: Works with modern terminals like Ghostty that reject xdotool simulated typing
+**Cons**: Requires user to be in `input` group
+**Alternative considered**: xdotool (rejected - doesn't work in modern terminals), clipboard paste (rejected - overwrites clipboard)
 
-#### 5. AppIndicator3 for system tray
+#### 5. evdev for hotkey detection
+**Rationale**: Kernel-level key capture, works everywhere including when terminals have focus
+**Pros**: Captures keys before any application can intercept them
+**Cons**: Requires user to be in `input` group
+**Alternative considered**: pynput (rejected - can't capture keys when terminals have focus)
+
+#### 6. AppIndicator3 for system tray
 **Rationale**: Standard Gnome/Ubuntu tray integration. Cross-desktop compatible.
 
-#### 6. Separate dictionary vs shortcuts
+#### 7. Separate dictionary vs shortcuts
 **Rationale**: Different use cases:
 - **Dictionary**: Fix model errors (word-level, regex boundaries)
 - **Shortcuts**: Expand phrases (phrase-level, string replacement)
+
+#### 8. Newline stripping option
+**Rationale**: CLI tools like Claude Code treat newlines as command separators
+**Use case**: When dictating to a CLI tool, Whisper may add newlines that cause premature execution
+**Implementation**: Simple string replacement (`\n` and `\r` → space) when `avoid_newlines: true`
+**Default**: Disabled (preserves natural transcription formatting)
 
 ## File Structure
 
@@ -125,11 +139,12 @@ All config files are **optional** and **gitignored**:
 
 ### config.yaml
 ```yaml
-hotkey: "<ctrl>+<alt>+v"              # pynput format
+hotkey: "<ctrl>+<alt>+v"              # evdev format
 whisper_model: "base"                 # tiny/base/small/medium/large
 whisper_cpp_path: "./whisper.cpp/..." # Relative or absolute
 sample_rate: 16000                    # Whisper expects 16kHz
 channels: 1                           # Mono audio
+avoid_newlines: false                 # Strip newlines from output (for CLI tools)
 ```
 
 ### dictionary.yaml (Word corrections)
@@ -151,8 +166,8 @@ channels: 1                           # Mono audio
 ## Dependencies
 
 ### Python Packages
-1. **pynput** - Global hotkey detection
-   - Alternatives considered: keyboard (requires root), python-xlib (complex)
+1. **evdev** - Kernel-level hotkey detection
+   - Captures keys before any application can intercept
 2. **pyaudio** - Audio recording
    - Requires portaudio19-dev system package
 3. **pyyaml** - Configuration parsing
