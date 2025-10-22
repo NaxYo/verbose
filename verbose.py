@@ -37,16 +37,18 @@ class VerboseDaemon:
 
         # Icon paths (relative to script directory)
         script_dir = Path(__file__).parent
-        self.ICON_IDLE = str(script_dir / "icons" / "idle.svg")
-        self.ICON_RECORDING = str(script_dir / "icons" / "recording.svg")
-        self.ICON_PROCESSING = str(script_dir / "icons" / "processing.svg")
+        self.icon_dir = str(script_dir / "icons")
+        self.ICON_IDLE = str(script_dir / "icons" / "idle")
+        self.ICON_RECORDING = str(script_dir / "icons" / "recording")
+        self.ICON_PROCESSING = str(script_dir / "icons" / "processing")
 
-        # System tray indicator
+        # System tray indicator - use icon theme path
         self.indicator = AppIndicator3.Indicator.new(
             "verbose",
-            self.ICON_IDLE,
+            "idle",  # Just the name, not full path
             AppIndicator3.IndicatorCategory.APPLICATION_STATUS
         )
+        self.indicator.set_icon_theme_path(self.icon_dir)
         self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
         self.indicator.set_menu(self.build_menu())
 
@@ -167,7 +169,7 @@ class VerboseDaemon:
         self.audio_frames = []
 
         # Update indicator to recording state (red)
-        self.indicator.set_icon_full(self.ICON_RECORDING, "")
+        self.indicator.set_icon_full("recording", "")
 
         # Start audio stream
         self.stream = self.audio.open(
@@ -200,11 +202,11 @@ class VerboseDaemon:
         if self.audio_frames:
             # Update indicator to processing state (orange)
             self.is_processing = True
-            self.indicator.set_icon_full(self.ICON_PROCESSING, "")
+            self.indicator.set_icon_full("processing", "")
             threading.Thread(target=self.process_audio, daemon=True).start()
         else:
             # No audio recorded, go back to idle
-            self.indicator.set_icon_full(self.ICON_IDLE, "")
+            self.indicator.set_icon_full("idle", "")
 
     def process_audio(self):
         """Transcribe audio and insert text"""
@@ -244,7 +246,7 @@ class VerboseDaemon:
 
             # Return to idle state
             self.is_processing = False
-            GLib.idle_add(lambda: self.indicator.set_icon_full(self.ICON_IDLE, ""))
+            GLib.idle_add(lambda: self.indicator.set_icon_full("idle", ""))
 
     def transcribe(self, audio_file):
         """Transcribe audio using whisper.cpp"""

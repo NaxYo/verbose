@@ -7,7 +7,7 @@ A simple voice-to-text daemon for Linux. Press a hotkey, speak, press again - te
 ## Features
 
 - ✅ Global hotkey toggle for recording (configurable)
-- ✅ System tray indicator with 3 states (gray idle / red recording / orange processing)
+- ✅ System tray indicator with 3 states and customizable icons (gray idle / red recording / orange processing)
 - ✅ Local transcription via whisper.cpp (privacy-first, no cloud)
 - ✅ Dictionary for word corrections (e.g., "designer" → "Desygner")
 - ✅ Shortcuts for phrase expansion (e.g., "my address" → full address)
@@ -112,6 +112,15 @@ Copy from `shortcuts.sample.yaml` to add phrase expansions:
 - Case-insensitive matching
 
 **Note:** All `.yaml` files are gitignored. Use `.sample.yaml` files as templates.
+
+## Custom Icons
+
+You can customize the system tray icons by replacing the SVG files in the `icons/` folder:
+- `idle.svg` - Shown when listening for hotkey
+- `recording.svg` - Shown when actively recording
+- `processing.svg` - Shown when processing transcription
+
+See `icons/README.md` for icon design guidelines.
 
 ## Troubleshooting
 

@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-  <!-- Processing microphone - orange with gear -->
-  <circle cx="12" cy="8" r="3" fill="#FF8800"/>
-  <line x1="12" y1="11" x2="12" y2="16" stroke="#FF8800" stroke-width="2"/>
-  <path d="M 8 13 Q 8 16 12 16 Q 16 16 16 13" fill="none" stroke="#FF8800" stroke-width="2"/>
-  <line x1="9" y1="16" x2="15" y2="16" stroke="#FF8800" stroke-width="2"/>
-  <!-- Processing indicator - small dots -->
-  <circle cx="17" cy="5" r="1.5" fill="#FF8800"/>
-  <circle cx="19" cy="7" r="1.5" fill="#FF8800" opacity="0.6"/>
-  <circle cx="19" cy="3" r="1.5" fill="#FF8800" opacity="0.6"/>
+  <!-- Processing microphone - orange, super bold filled design -->
+  <rect x="8" y="3" width="8" height="10" rx="4" fill="#FFAA00"/>
+  <rect x="10.5" y="13" width="3" height="5" fill="#FFAA00"/>
+  <rect x="6" y="17" width="12" height="3" rx="1.5" fill="#FFAA00"/>
+  <!-- Processing indicators - three dots -->
+  <circle cx="19" cy="3" r="2.5" fill="#FFAA00"/>
+  <circle cx="19" cy="9" r="2.5" fill="#FFAA00" opacity="0.7"/>
+  <circle cx="19" cy="15" r="2.5" fill="#FFAA00" opacity="0.4"/>
 </svg>
