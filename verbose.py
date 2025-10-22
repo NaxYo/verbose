@@ -30,14 +30,21 @@ class VerboseDaemon:
         self.dictionary = self.load_dictionary()
         self.shortcuts = self.load_shortcuts()
         self.is_recording = False
+        self.is_processing = False
         self.audio_frames = []
         self.audio = pyaudio.PyAudio()
         self.stream = None
 
+        # Icon paths (relative to script directory)
+        script_dir = Path(__file__).parent
+        self.ICON_IDLE = str(script_dir / "icons" / "idle.svg")
+        self.ICON_RECORDING = str(script_dir / "icons" / "recording.svg")
+        self.ICON_PROCESSING = str(script_dir / "icons" / "processing.svg")
+
         # System tray indicator
         self.indicator = AppIndicator3.Indicator.new(
             "verbose",
-            "microphone-sensitivity-muted",
+            self.ICON_IDLE,
             AppIndicator3.IndicatorCategory.APPLICATION_STATUS
         )
         self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
@@ -159,8 +166,8 @@ class VerboseDaemon:
         self.is_recording = True
         self.audio_frames = []
 
-        # Update indicator to red
-        self.indicator.set_icon_full("microphone-sensitivity-high", "")
+        # Update indicator to recording state (red)
+        self.indicator.set_icon_full(self.ICON_RECORDING, "")
 
         # Start audio stream
         self.stream = self.audio.open(
@@ -183,9 +190,6 @@ class VerboseDaemon:
         """Stop recording and process audio"""
         self.is_recording = False
 
-        # Update indicator back to gray
-        self.indicator.set_icon_full("microphone-sensitivity-muted", "")
-
         # Stop audio stream
         if self.stream:
             self.stream.stop_stream()
@@ -194,7 +198,13 @@ class VerboseDaemon:
 
         # Process audio in background thread
         if self.audio_frames:
+            # Update indicator to processing state (orange)
+            self.is_processing = True
+            self.indicator.set_icon_full(self.ICON_PROCESSING, "")
             threading.Thread(target=self.process_audio, daemon=True).start()
+        else:
+            # No audio recorded, go back to idle
+            self.indicator.set_icon_full(self.ICON_IDLE, "")
 
     def process_audio(self):
         """Transcribe audio and insert text"""
@@ -231,6 +241,10 @@ class VerboseDaemon:
             # Clean up temp file
             if os.path.exists(wav_path):
                 os.unlink(wav_path)
+
+            # Return to idle state
+            self.is_processing = False
+            GLib.idle_add(lambda: self.indicator.set_icon_full(self.ICON_IDLE, ""))
 
     def transcribe(self, audio_file):
         """Transcribe audio using whisper.cpp"""

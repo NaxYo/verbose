@@ -93,6 +93,10 @@
 
 #### 6. AppIndicator3 for system tray
 **Rationale**: Standard Gnome/Ubuntu tray integration. Cross-desktop compatible.
+**Icon states**:
+- Gray (microphone-sensitivity-muted): Idle, listening for hotkey
+- Red (microphone-sensitivity-high): Actively recording audio
+- Orange (microphone-sensitivity-medium): Processing transcription
 
 #### 7. Separate dictionary vs shortcuts
 **Rationale**: Different use cases:

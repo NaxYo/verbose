@@ -7,7 +7,7 @@ A simple voice-to-text daemon for Linux. Press a hotkey, speak, press again - te
 ## Features
 
 - ✅ Global hotkey toggle for recording (configurable)
-- ✅ System tray indicator (gray idle / red recording)
+- ✅ System tray indicator with 3 states (gray idle / red recording / orange processing)
 - ✅ Local transcription via whisper.cpp (privacy-first, no cloud)
 - ✅ Dictionary for word corrections (e.g., "designer" → "Desygner")
 - ✅ Shortcuts for phrase expansion (e.g., "my address" → full address)
@@ -68,10 +68,12 @@ You'll see: `Verbose started. Press <ctrl>+<alt>+v to toggle recording.`
 
 ### How to use:
 1. Press your hotkey (default: **Ctrl+Alt+V**) to start recording
-2. **Red microphone icon** appears in system tray
+2. **Red microphone icon** appears in system tray (recording)
 3. Speak clearly for a few seconds
 4. Press the hotkey again to stop
-5. Text automatically appears at your cursor position
+5. **Orange microphone icon** appears (processing transcription)
+6. Text automatically appears at your cursor position
+7. **Gray microphone icon** returns (idle, ready for next recording)
 
 ### Tips:
 - Speak for at least 2-3 seconds for best results
