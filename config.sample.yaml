@@ -2,9 +2,9 @@
 # Copy this file to config.yaml and customize for your setup
 # Usage: cp config.sample.yaml config.yaml
 
-# Hotkey to toggle recording (using pynput key names)
-# Examples: <ctrl>+<alt>+v, <shift>+<f9>, etc.
-hotkey: "<ctrl>+<alt>+v"
+# Hotkey to toggle recording (evdev key names)
+# Examples: <f9>, <ctrl>+<alt>+v, <shift>+<f9>, etc.
+hotkey: "<f9>"
 
 # Whisper model to use (tiny, base, small, medium, large)
 # Smaller = faster but less accurate

@@ -63,7 +63,7 @@ class VerboseDaemon:
         """Load configuration from config.yaml or use defaults"""
         config_path = Path(__file__).parent / 'config.yaml'
         default_config = {
-            'hotkey': '<ctrl>+<alt>+v',
+            'hotkey': '<f9>',
             'whisper_model': 'base',
             'whisper_cpp_path': './whisper.cpp/build/bin/whisper-cli',
             'sample_rate': 16000,
@@ -107,16 +107,39 @@ class VerboseDaemon:
     def find_keyboard(self):
         """Find keyboard device using evdev"""
         devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
+        keyboards = []
+
         for device in devices:
             caps = device.capabilities()
             if ecodes.EV_KEY in caps:
                 keys = caps[ecodes.EV_KEY]
-                # Check if it has letter keys (actual keyboard)
-                if ecodes.KEY_A in keys or ecodes.KEY_Q in keys:
-                    print("Using keyboard: " + device.name)
-                    return device
-        print("Warning: No keyboard device found!")
-        return None
+                # Check for function keys and letter keys
+                has_f_keys = any(k in keys for k in [ecodes.KEY_F1, ecodes.KEY_F9, ecodes.KEY_F10])
+                has_letters = ecodes.KEY_A in keys or ecodes.KEY_Q in keys
+                has_numbers = ecodes.KEY_1 in keys or ecodes.KEY_2 in keys
+
+                # Check if it has letter keys AND function keys or numbers (actual keyboard)
+                if has_letters and (has_f_keys or has_numbers):
+                    keyboards.append(device)
+
+        if not keyboards:
+            print("Warning: No keyboard device found!")
+            return None
+
+        # Sort keyboards - prefer ones with "keyboard" or "kbd" in the name, avoid "mouse" and "gaming"
+        def keyboard_priority(device):
+            name_lower = device.name.lower()
+            # Exclude devices with "mouse" in the name
+            if 'mouse' in name_lower or 'gaming' in name_lower:
+                return 999  # Low priority
+            # Prefer devices with "keyboard" or "kbd" in the name
+            if 'keyboard' in name_lower or 'kbd' in name_lower:
+                return 0  # High priority
+            return 100  # Medium priority
+
+        keyboards.sort(key=keyboard_priority)
+        print("Using keyboard: " + keyboards[0].name)
+        return keyboards[0]
 
     def parse_hotkey(self, hotkey_str):
         """Convert hotkey string like '<f9>' or '<alt>+<space>' to evdev key code"""

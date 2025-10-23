@@ -1,12 +1,15 @@
 [Unit]
 Description=Verbose - Voice-to-text daemon
-After=graphical.target
+After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /home/nax/tools/verbose/verbose.py
+ExecStart=%h/tools/verbose/verbose.py
 Restart=on-failure
 RestartSec=5
+Environment="DISPLAY=:0"
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=default.target

@@ -14,7 +14,7 @@
 - **Language**: Python 3.6+
 - **Lines of Code**: ~280 (single file implementation)
 - **Dependencies**: 4 Python packages, whisper.cpp binary
-- **Platform**: Linux (X11, partial Wayland support possible)
+- **Platform**: Linux (X11 and Wayland supported via ydotool)
 
 ## Architecture
 
@@ -82,8 +82,9 @@
 #### 4. ydotool for text insertion
 **Rationale**: Kernel-level input simulation, works everywhere (X11, Wayland, terminals)
 **Pros**: Works with modern terminals like Ghostty that reject xdotool simulated typing
-**Cons**: Requires user to be in `input` group
+**Cons**: Requires user to be in `input` group AND `/dev/uinput` must be accessible
 **Alternative considered**: xdotool (rejected - doesn't work in modern terminals), clipboard paste (rejected - overwrites clipboard)
+**Note**: Modern ydotool (v1.0+) does NOT require `ydotoold` daemon - works standalone with proper uinput permissions
 
 #### 5. evdev for hotkey detection
 **Rationale**: Kernel-level key capture, works everywhere including when terminals have focus
@@ -99,12 +100,20 @@
 - Red (microphone-sensitivity-high): Actively recording audio
 - Orange (microphone-sensitivity-medium): Processing transcription
 
-#### 7. Separate dictionary vs shortcuts
+#### 7. Keyboard device selection with prioritization
+**Rationale**: Some systems have multiple devices that look like keyboards (gaming mice with programmable keys, system hotkey devices)
+**Implementation**: Detect all devices with keyboard capabilities, then prioritize:
+1. Devices with "keyboard" or "kbd" in name (priority 0)
+2. Other valid keyboards (priority 100)
+3. Devices with "mouse" or "gaming" in name (priority 999 - excluded)
+**Result**: Correctly selects actual keyboard instead of gaming mice or other input devices
+
+#### 8. Separate dictionary vs shortcuts
 **Rationale**: Different use cases:
 - **Dictionary**: Fix model errors (word-level, regex boundaries)
 - **Shortcuts**: Expand phrases (phrase-level, string replacement)
 
-#### 8. Newline stripping option
+#### 9. Newline stripping option
 **Rationale**: CLI tools like Claude Code treat newlines as command separators
 **Use case**: When dictating to a CLI tool, Whisper may add newlines that cause premature execution
 **Implementation**: Simple string replacement (`\n` and `\r` → space) when `avoid_newlines: true`
@@ -144,7 +153,7 @@ All config files are **optional** and **gitignored**:
 
 ### config.yaml
 ```yaml
-hotkey: "<ctrl>+<alt>+v"              # evdev format
+hotkey: "<f9>"                        # evdev format
 whisper_model: "base"                 # tiny/base/small/medium/large
 whisper_cpp_path: "./whisper.cpp/..." # Relative or absolute
 sample_rate: 16000                    # Whisper expects 16kHz
@@ -154,8 +163,8 @@ avoid_newlines: false                 # Strip newlines from output (for CLI tool
 
 ### dictionary.yaml (Word corrections)
 ```yaml
-"designer": "Desygner"  # Fix company name
-"postgres": "PostgreSQL" # Fix product name
+"cloud code": "Claude Code"
+"postgres": "PostgreSQL"
 ```
 - Uses regex word boundaries (`\b`) to avoid partial matches
 - Case-insensitive matching
@@ -182,9 +191,11 @@ avoid_newlines: false                 # Strip newlines from output (for CLI tool
 ### System Dependencies
 1. **whisper.cpp** - Speech-to-text engine
    - Built from source (cmake, make)
-   - Models downloaded separately (~150MB for base)
-2. **xdotool** - Text insertion
-   - Standard in most distros
+   - Models downloaded separately (~142MB for base)
+2. **ydotool** - Text insertion (kernel-level input simulation)
+   - Works on X11 and Wayland
+   - Requires `/dev/uinput` access (see udev rule in installation)
+   - Modern versions do NOT require `ydotoold` daemon
 3. **portaudio** - Audio backend for PyAudio
 
 ## Common Issues & Solutions
@@ -208,6 +219,31 @@ avoid_newlines: false                 # Strip newlines from output (for CLI tool
 ### Issue: ALSA warnings on startup
 **Root cause**: PyAudio probes all audio devices
 **Solution**: Harmless, can be ignored (or redirect stderr)
+
+### Issue: "failed to open uinput device"
+**Root cause**: `/dev/uinput` permissions not configured for `input` group
+**Solution**: Create udev rule to allow input group access:
+```bash
+echo 'KERNEL=="uinput", MODE="0660", GROUP="input", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/99-uinput.rules
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+sudo modprobe uinput
+```
+
+### Issue: Gaming mouse detected as keyboard
+**Root cause**: Gaming mice with programmable buttons report keyboard capabilities
+**Solution**: Implemented keyboard prioritization in `find_keyboard()` (verbose.py:107-142):
+- Detects all devices with letter keys AND (function keys OR number keys)
+- Sorts by priority: "keyboard"/"kbd" in name > others > "mouse"/"gaming" excluded
+- Correctly selects actual keyboard over gaming peripherals
+
+### Issue: ModuleNotFoundError for Python packages
+**Root cause**: Modern Ubuntu (22.04+) blocks `pip install` system-wide (PEP 668)
+**Solution**: Use system packages instead:
+```bash
+sudo apt install python3-evdev python3-pyaudio python3-yaml python3-gi
+```
+Alternative: Use virtual environment with `python3 -m venv`
 
 ## Development Guide
 
@@ -237,13 +273,6 @@ python3 verbose.py
 ```
 
 ## Future Enhancements (Not Implemented)
-
-### Wayland Support
-Replace xdotool with ydotool:
-```python
-subprocess.run(['ydotool', 'type', text])
-```
-Requires ydotool service running.
 
 ### Deepgram Remote API (Fallback)
 Original plan included Deepgram API as alternative to whisper.cpp:
@@ -348,11 +377,11 @@ Trade-off: Speed vs accuracy. Base model is sweet spot for most users.
 
 ## Known Limitations
 
-1. **X11 only** - xdotool doesn't work on Wayland (ydotool needed)
-2. **English-focused** - Whisper supports many languages, but dictionary/shortcuts are English-centric
-3. **No punctuation commands** - Can't say "comma" to insert ","
-4. **No editing commands** - Can't say "delete last word"
-5. **Single microphone** - No device selection UI
+1. **English-focused** - Whisper supports many languages, but dictionary/shortcuts are English-centric
+2. **No punctuation commands** - Can't say "comma" to insert ","
+3. **No editing commands** - Can't say "delete last word"
+4. **Single microphone** - No device selection UI
+5. **Gaming peripherals** - Some gaming mice/keyboards may interfere with device detection (prioritization helps but not foolproof)
 
 ## Contributing Guidelines
 
@@ -360,8 +389,8 @@ Trade-off: Speed vs accuracy. Base model is sweet spot for most users.
 - ✅ Bug fixes
 - ✅ Performance improvements
 - ✅ Better error handling
-- ✅ Wayland support
 - ✅ Documentation improvements
+- ✅ Multi-language support
 
 ### What we're NOT looking for:
 - ❌ Heavy frameworks (no Electron, no Qt)
