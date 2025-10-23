@@ -2,7 +2,7 @@
 
 **Press a key. Speak. Press again. Text appears.**
 
-Voice-to-text for Linux that actually works. No cloud, no subscriptions, no bullshit.
+Voice-to-text for Linux. 100% local, no subscriptions.
 
 ```bash
 # Install it
@@ -21,9 +21,9 @@ python3 verbose.py
 
 ## What It Does
 
-Voice-to-text that works in your terminal. Your browser. Your IDE. Everywhere.
+Local voice-to-text using whisper.cpp. Works in any application - terminals, browsers, IDEs.
 
-100% local. No subscription. No API keys.
+No cloud dependencies. No API keys needed.
 
 ## Features
 
@@ -75,11 +75,31 @@ Each hotkey loads its own config. Press F9 for coding, F10 for emails. Simple.
 
 Ubuntu 22.04+ (or any Linux with evdev and ydotool). ~200MB disk space. That's it.
 
+## Contributing
+
+Contributions welcome! Here's where help is needed:
+
+### Packaging & Distribution
+The project currently requires manual installation. I don't know how to package for Linux distributions - if you do, help would be appreciated:
+- Snap package
+- Flatpak
+- AUR (Arch)
+- Debian/Ubuntu .deb
+- AppImage
+
+Open an issue if you'd like to help with any of these.
+
+### Other Contributions
+- Bug fixes and improvements
+- Better error handling
+- Documentation improvements
+- Multi-language support
+
+Read [CLAUDE.md](CLAUDE.md) for architecture details. Keep changes simple and focused.
+
 ## Development
 
-Single Python file. ~500 lines. Built in a morning with Claude Code.
-
-Want to contribute? Read [CLAUDE.md](CLAUDE.md) first. Keep it simple.
+Single Python file. ~500 lines. Built with Claude Code.
 
 ## License
 
