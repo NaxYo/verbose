@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Verbose** is a minimalist voice-to-text daemon for Linux, built as an open-source alternative to proprietary tools like Whisprflow and Talon Voice.
+**Verbose** is a minimalist voice-to-text daemon for Linux, built as an open-source alternative to proprietary tools like Wispr Flow and Talon Voice.
 
 ### Design Philosophy
 - **Start small, no over-engineering** - MVP first, features later
@@ -450,7 +450,7 @@ MIT License - See LICENSE file (to be created)
 
 - **whisper.cpp**: Georgi Gerganov (@ggerganov)
 - **OpenAI Whisper**: Original model by OpenAI
-- **Inspiration**: Talon Voice, Whisprflow (proprietary alternatives)
+- **Inspiration**: Talon Voice, Wispr Flow (proprietary alternatives)
 
 ## Changelog
 

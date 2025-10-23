@@ -108,7 +108,7 @@ MIT - Do whatever you want with it.
 ## Credits
 
 - Built with [whisper.cpp](https://github.com/ggerganov/whisper.cpp) by [@ggerganov](https://github.com/ggerganov)
-- Inspired by Talon Voice and Whisprflow (but free and local)
+- Inspired by Talon Voice and Wispr Flow (but free and local)
 - Designed with [Claude Code](https://claude.com/claude-code)
 
 ## Support
