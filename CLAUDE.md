@@ -123,9 +123,11 @@
 
 ```
 verbose/
-├── verbose.py              # Main daemon (~300 lines)
-├── config.sample.yaml      # Unified config template (committed)
-├── config.yaml             # User config (gitignored)
+├── verbose.py              # Main daemon (~500 lines)
+├── configs/                # Configuration directory
+│   ├── sample.yaml        # Template config (committed)
+│   ├── coding.yaml        # User config for coding (gitignored)
+│   └── writing.yaml       # User config for writing (gitignored)
 ├── requirements.txt        # Python dependencies
 ├── .gitignore             # Ignores local configs
 ├── README.md              # User documentation
@@ -134,27 +136,30 @@ verbose/
 
 ## Configuration System
 
-### Unified Config Pattern
-Single `config.yaml` file contains all configuration - **completely optional** and **gitignored**:
-- `config.sample.yaml` is committed to the repo as a template
-- Users copy `config.sample.yaml` → `config.yaml` and customize
-- Program uses sensible defaults if no config exists
-- All sections within config are optional (can include just `dictionary:` without `shortcuts:`, etc.)
-- All fields within sections are optional (can specify just `hotkey:` without other settings)
+### Multi-Config Pattern
+Multiple configuration files in `configs/` directory - **completely optional** and **gitignored**:
+- `configs/sample.yaml` is committed to the repo as a template
+- Users copy `sample.yaml` to create multiple configs (e.g., `coding.yaml`, `writing.yaml`)
+- Each config has its own hotkey, dictionary, shortcuts, and settings
+- Program uses sensible defaults if no configs exist
+- All sections within each config are optional
+- All fields within sections are optional
 - Prevents merge conflicts on personal settings
 
 **Benefits:**
 - ✅ Works out-of-the-box (no config required)
-- ✅ Single file to manage instead of 3 separate files
+- ✅ Multiple configs for different use cases (coding vs. writing)
+- ✅ Each config has its own hotkey
 - ✅ Users can customize without git conflicts
 - ✅ Maximum flexibility - include only what you need
 - ✅ Sample file documents all options
-- ✅ Local config never accidentally committed
+- ✅ Local configs never accidentally committed
+- ✅ Duplicate hotkey detection with desktop notifications
 
-### config.yaml Structure
+### Config File Structure
 ```yaml
-# Main settings (all optional)
-hotkey: "<f9>"                        # evdev format
+# Main settings
+hotkey: "<f9>"                        # REQUIRED - Must be unique per config
 whisper_model: "base"                 # tiny/base/small/medium/large
 whisper_cpp_path: "./whisper.cpp/..." # Relative or absolute
 sample_rate: 16000                    # Whisper expects 16kHz
@@ -171,6 +176,20 @@ shortcuts:
   "my address": "Unit 3, 123 Main Street..."
   "my email": "you@example.com"
 ```
+
+**Multiple Config Example:**
+```
+configs/
+├── coding.yaml    # F9  - avoid_newlines=true, coding dictionary
+└── writing.yaml   # F10 - avoid_newlines=false, personal shortcuts
+```
+
+**How it works:**
+1. Verbose loads all `.yaml` files from `configs/` (except `sample.yaml`)
+2. Each config's hotkey is mapped to that config
+3. Pressing a hotkey starts recording with that config's settings
+4. Any hotkey can stop recording, but transcription uses the starting config
+5. Duplicate hotkeys trigger desktop notification and are skipped
 
 **Dictionary section:**
 - Uses regex word boundaries (`\b`) to avoid partial matches

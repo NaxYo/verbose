@@ -1,5 +1,6 @@
-# Local configuration file (user-specific, use config.sample.yaml as template)
-config.yaml
+# Local configuration files (user-specific, use configs/sample.yaml as template)
+configs/*.yaml
+!configs/sample.yaml
 
 # whisper.cpp (built locally)
 whisper.cpp/

@@ -26,12 +26,11 @@ class VerboseDaemon:
     """Main daemon for voice-to-text recording and transcription"""
 
     def __init__(self):
-        self.config = self.load_config()
-        self.dictionary = self.load_dictionary()
-        self.shortcuts = self.load_shortcuts()
+        self.configs = self.load_configs()  # Dict of config_name -> config_data
         self.is_recording = False
         self.is_processing = False
         self.is_cancelled = False
+        self.active_config_name = None  # Track which config triggered recording
         self.audio_frames = []
         self.audio = pyaudio.PyAudio()
         self.stream = None
@@ -56,59 +55,95 @@ class VerboseDaemon:
 
         # Find keyboard device for evdev
         self.keyboard_device = self.find_keyboard()
-        self.hotkey_code = self.parse_hotkey(self.config['hotkey'])
+
+        # Build hotkey map: hotkey_code -> config_name
+        self.hotkey_map = {}
+        for config_name, config_data in self.configs.items():
+            hotkey_code = self.parse_hotkey(config_data['hotkey'])
+            if hotkey_code in self.hotkey_map:
+                # Duplicate hotkey detected
+                self.show_notification(
+                    "Verbose Configuration Error",
+                    "Duplicate hotkey '{}' in configs '{}' and '{}'. Skipping '{}'.".format(
+                        config_data['hotkey'],
+                        self.hotkey_map[hotkey_code],
+                        config_name,
+                        config_name
+                    )
+                )
+                print("Warning: Duplicate hotkey '{}' in configs '{}' and '{}'. Skipping '{}'.".format(
+                    config_data['hotkey'],
+                    self.hotkey_map[hotkey_code],
+                    config_name,
+                    config_name
+                ))
+            else:
+                self.hotkey_map[hotkey_code] = config_name
+
         self.hotkey_thread = None
 
-    def load_config(self):
-        """Load unified configuration from config.yaml or use defaults"""
-        config_path = Path(__file__).parent / 'config.yaml'
+    def load_configs(self):
+        """Load all configuration files from configs/ directory"""
+        configs_dir = Path(__file__).parent / 'configs'
+        configs = {}
+
+        # Default config values
         default_config = {
             'hotkey': '<f9>',
             'whisper_model': 'base',
             'whisper_cpp_path': './whisper.cpp/build/bin/whisper-cli',
             'sample_rate': 16000,
             'channels': 1,
-            'avoid_newlines': False
+            'avoid_newlines': False,
+            'dictionary': {},
+            'shortcuts': {}
         }
 
-        if config_path.exists():
-            try:
-                with open(config_path) as f:
-                    loaded_config = yaml.safe_load(f) or {}
-                    # Extract dictionary and shortcuts if present
-                    # Remove them from main config to avoid conflicts
-                    loaded_config.pop('dictionary', None)
-                    loaded_config.pop('shortcuts', None)
-                    # Merge with defaults (loaded config overrides defaults)
-                    return {**default_config, **loaded_config}
-            except Exception as e:
-                print("Error loading config.yaml, using defaults: " + str(e))
+        # If configs directory doesn't exist, create it with a default config
+        if not configs_dir.exists():
+            print("configs/ directory not found, creating with default config...")
+            configs_dir.mkdir()
+            configs['default'] = default_config
+            return configs
 
-        return default_config
+        # Load all .yaml files from configs/
+        yaml_files = list(configs_dir.glob('*.yaml'))
 
-    def load_dictionary(self):
-        """Load word corrections from dictionary section in config.yaml"""
-        config_path = Path(__file__).parent / 'config.yaml'
-        if config_path.exists():
-            try:
-                with open(config_path) as f:
-                    loaded_config = yaml.safe_load(f) or {}
-                    return loaded_config.get('dictionary', {})
-            except Exception as e:
-                print("Error loading dictionary from config.yaml, skipping: " + str(e))
-        return {}
+        # Filter out sample.yaml
+        yaml_files = [f for f in yaml_files if f.stem != 'sample']
 
-    def load_shortcuts(self):
-        """Load phrase expansions from shortcuts section in config.yaml"""
-        config_path = Path(__file__).parent / 'config.yaml'
-        if config_path.exists():
+        if not yaml_files:
+            print("No config files found in configs/, using defaults")
+            configs['default'] = default_config
+            return configs
+
+        for config_file in yaml_files:
+            config_name = config_file.stem  # Filename without extension
             try:
-                with open(config_path) as f:
+                with open(config_file) as f:
                     loaded_config = yaml.safe_load(f) or {}
-                    return loaded_config.get('shortcuts', {})
+
+                    # Extract dictionary and shortcuts
+                    dictionary = loaded_config.pop('dictionary', {})
+                    shortcuts = loaded_config.pop('shortcuts', {})
+
+                    # Merge with defaults
+                    final_config = {**default_config, **loaded_config}
+                    final_config['dictionary'] = dictionary
+                    final_config['shortcuts'] = shortcuts
+
+                    configs[config_name] = final_config
+                    print("Loaded config '{}' with hotkey '{}'".format(
+                        config_name, final_config['hotkey']
+                    ))
             except Exception as e:
-                print("Error loading shortcuts from config.yaml, skipping: " + str(e))
-        return {}
+                print("Error loading {}: {}".format(config_file, str(e)))
+
+        if not configs:
+            print("No valid configs loaded, using defaults")
+            configs['default'] = default_config
+
+        return configs
 
     def find_keyboard(self):
         """Find keyboard device using evdev"""
@@ -187,12 +222,19 @@ class VerboseDaemon:
         menu.show_all()
         return menu
 
-    def toggle_recording(self):
-        """Toggle recording on/off"""
+    def show_notification(self, title, message):
+        """Show desktop notification using notify-send"""
+        try:
+            subprocess.run(['notify-send', title, message], check=False)
+        except Exception as e:
+            print("Failed to show notification: " + str(e))
+
+    def toggle_recording(self, config_name):
+        """Toggle recording on/off using the specified config"""
         if self.is_recording:
             self.stop_recording()
         else:
-            self.start_recording()
+            self.start_recording(config_name)
 
     def cancel_operation(self):
         """Cancel current operation (recording, processing, or typing)"""
@@ -220,8 +262,9 @@ class VerboseDaemon:
         self.is_processing = False
         self.indicator.set_icon_full("idle", "")
 
-    def start_recording(self):
-        """Start recording audio"""
+    def start_recording(self, config_name):
+        """Start recording audio using the specified config"""
+        self.active_config_name = config_name
         self.is_recording = True
         self.is_cancelled = False  # Reset cancel flag when starting new recording
         self.audio_frames = []
@@ -229,11 +272,14 @@ class VerboseDaemon:
         # Update indicator to recording state (red)
         self.indicator.set_icon_full("recording", "")
 
+        # Get active config
+        config = self.configs[config_name]
+
         # Start audio stream
         self.stream = self.audio.open(
             format=pyaudio.paInt16,
-            channels=self.config['channels'],
-            rate=self.config['sample_rate'],
+            channels=config['channels'],
+            rate=config['sample_rate'],
             input=True,
             frames_per_buffer=1024,
             stream_callback=self.audio_callback
@@ -267,11 +313,14 @@ class VerboseDaemon:
             self.indicator.set_icon_full("idle", "")
 
     def process_audio(self):
-        """Transcribe audio and insert text"""
+        """Transcribe audio and insert text using the active config"""
         # Check if cancelled before starting
         if self.is_cancelled:
             self.is_processing = False
             return
+
+        # Get the active config
+        config = self.configs[self.active_config_name]
 
         # Save audio to temporary WAV file
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as f:
@@ -279,9 +328,9 @@ class VerboseDaemon:
 
         try:
             wf = wave.open(wav_path, 'wb')
-            wf.setnchannels(self.config['channels'])
+            wf.setnchannels(config['channels'])
             wf.setsampwidth(self.audio.get_sample_size(pyaudio.paInt16))
-            wf.setframerate(self.config['sample_rate'])
+            wf.setframerate(config['sample_rate'])
             wf.writeframes(b''.join(self.audio_frames))
             wf.close()
 
@@ -290,20 +339,20 @@ class VerboseDaemon:
                 return
 
             # Transcribe with whisper.cpp
-            text = self.transcribe(wav_path)
+            text = self.transcribe(wav_path, config)
 
             # Check if cancelled after transcription
             if self.is_cancelled or not text:
                 return
 
             # Apply dictionary corrections (fix misinterpreted words)
-            text = self.apply_dictionary(text)
+            text = self.apply_dictionary(text, config)
 
             # Apply shortcuts (expand spoken phrases)
-            text = self.apply_shortcuts(text)
+            text = self.apply_shortcuts(text, config)
 
             # Remove newlines if configured
-            if self.config.get('avoid_newlines', False):
+            if config.get('avoid_newlines', False):
                 text = text.replace('\n', ' ').replace('\r', ' ')
 
             # Check if cancelled before inserting text
@@ -323,11 +372,11 @@ class VerboseDaemon:
                 self.is_processing = False
                 GLib.idle_add(lambda: self.indicator.set_icon_full("idle", ""))
 
-    def transcribe(self, audio_file):
-        """Transcribe audio using whisper.cpp"""
+    def transcribe(self, audio_file, config):
+        """Transcribe audio using whisper.cpp with the specified config"""
         # Resolve paths relative to this script's location
         script_dir = Path(__file__).parent.resolve()
-        whisper_path = Path(self.config['whisper_cpp_path'])
+        whisper_path = Path(config['whisper_cpp_path'])
 
         # If relative path, make it relative to script location
         if not whisper_path.is_absolute():
@@ -335,7 +384,7 @@ class VerboseDaemon:
         else:
             whisper_path = whisper_path.expanduser()
 
-        model = self.config['whisper_model']
+        model = config['whisper_model']
 
         # Determine model path (go up to whisper.cpp root: build/bin/main -> build/bin -> build -> whisper.cpp)
         model_dir = whisper_path.parent.parent.parent / 'models'
@@ -376,20 +425,20 @@ class VerboseDaemon:
             print("Transcription error: " + str(e))
             return None
 
-    def apply_dictionary(self, text):
+    def apply_dictionary(self, text, config):
         """Apply word corrections from dictionary (fix misinterpreted words)"""
-        for wrong, correct in self.dictionary.items():
+        import re
+        for wrong, correct in config['dictionary'].items():
             # Case-insensitive word replacement
-            import re
             # Use word boundaries to avoid partial matches
             pattern = re.compile(r'\b' + re.escape(wrong) + r'\b', re.IGNORECASE)
             text = pattern.sub(correct, text)
 
         return text
 
-    def apply_shortcuts(self, text):
+    def apply_shortcuts(self, text, config):
         """Apply phrase expansions from shortcuts"""
-        for phrase, replacement in self.shortcuts.items():
+        for phrase, replacement in config['shortcuts'].items():
             # Case-insensitive phrase replacement
             text = text.replace(phrase, replacement)
             text = text.replace(phrase.lower(), replacement)
@@ -425,9 +474,11 @@ class VerboseDaemon:
                     key_event = evdev.categorize(event)
                     # Only trigger on key press (not release)
                     if key_event.keystate == evdev.KeyEvent.key_down:
-                        if event.code == self.hotkey_code:
+                        # Check if this key code matches any configured hotkey
+                        if event.code in self.hotkey_map:
+                            config_name = self.hotkey_map[event.code]
                             # Use GLib to call toggle_recording in main thread
-                            GLib.idle_add(self.toggle_recording)
+                            GLib.idle_add(self.toggle_recording, config_name)
                         elif event.code == ecodes.KEY_ESC:
                             # Escape key cancels current operation
                             GLib.idle_add(self.cancel_operation)
@@ -436,7 +487,9 @@ class VerboseDaemon:
 
     def run(self):
         """Start the daemon"""
-        print("Verbose started. Press " + self.config['hotkey'] + " to toggle recording.")
+        print("Verbose started with {} configuration(s):".format(len(self.configs)))
+        for config_name, config_data in self.configs.items():
+            print("  - '{}': {}".format(config_name, config_data['hotkey']))
 
         # Start hotkey listener in background thread
         self.hotkey_thread = threading.Thread(target=self.listen_for_hotkey, daemon=True)

@@ -145,22 +145,25 @@ To uninstall the service:
 ./uninstall-service.sh
 ```
 
-### Step 6: (Optional) Customize Configuration
+### Step 6: (Optional) Create Custom Configurations
 
-All configuration is optional - defaults work out of the box.
+Verbose supports multiple configurations with different hotkeys. All configuration is optional - defaults work out of the box.
 
 ```bash
-# Copy the sample config
-cp config.sample.yaml config.yaml
+# Create your first config (e.g., for coding)
+cp configs/sample.yaml configs/coding.yaml
+nano configs/coding.yaml  # Set hotkey to <f9>, enable avoid_newlines, add coding dictionary
 
-# Edit to your preferences
-nano config.yaml
+# Create a second config (e.g., for writing)
+cp configs/sample.yaml configs/writing.yaml
+nano configs/writing.yaml  # Set hotkey to <f10>, add personal shortcuts
 ```
 
-**Note:**
-- The config file is gitignored, so your customizations won't conflict with updates
-- All sections (hotkey, whisper_model, dictionary, shortcuts, etc.) are optional
-- You can include only the parts you want to customize
+**Important:**
+- Each config MUST have a unique hotkey
+- If duplicate hotkeys are detected, you'll get a desktop notification
+- Config files in `configs/` are gitignored (except `sample.yaml`)
+- All sections within each config are optional
 
 ## Usage
 
@@ -212,29 +215,43 @@ To uninstall:
 
 ## Configuration
 
-All configuration is optional - the program works with sensible defaults. Everything is configured through a single `config.yaml` file.
+Verbose supports **multiple configurations** with different hotkeys. This allows you to have separate setups for different use cases (e.g., coding vs. writing).
 
 ### Quick Start
 
 ```bash
-# Copy the sample config
-cp config.sample.yaml config.yaml
+# Create a config for coding/prompting
+cp configs/sample.yaml configs/coding.yaml
+# Edit: set hotkey to <f9>, enable avoid_newlines, add tech terms to dictionary
 
-# Edit only the sections you want to customize
-nano config.yaml
+# Create a config for writing/emails
+cp configs/sample.yaml configs/writing.yaml
+# Edit: set hotkey to <f10>, add personal shortcuts
 ```
 
-### Configuration Sections
+### How Multiple Configs Work
 
-All sections are **completely optional**. Include only what you want to customize.
+- Put `.yaml` files in the `configs/` directory
+- Each config file becomes a separate configuration
+- Each config MUST have a unique hotkey
+- Press the hotkey to record using that config's settings
+- Any hotkey can stop recording, but transcription uses the starting config
+
+**Example:**
+- Press **F9** (coding config) → transcription strips newlines, uses coding dictionary
+- Press **F10** (writing config) → transcription keeps newlines, uses personal shortcuts
+
+### Configuration Options
+
+All sections within each config are **completely optional**. Include only what you need.
 
 #### Main Settings
-- `hotkey`: Key combination to toggle recording (default: `<f9>`)
+- `hotkey`: **REQUIRED** - Must be unique per config (e.g., `<f9>`, `<f10>`)
 - `whisper_model`: Model size - tiny/base/small/medium/large (default: `base`)
 - `whisper_cpp_path`: Path to whisper.cpp binary (default: `./whisper.cpp/build/bin/whisper-cli`)
 - `sample_rate`: Audio sample rate (default: `16000`)
 - `channels`: Audio channels (default: `1`)
-- `avoid_newlines`: Strip newlines from output (default: `false`) - useful for CLI tools like Claude Code
+- `avoid_newlines`: Strip newlines from output (default: `false`) - useful for CLI tools
 
 #### Dictionary (Word Corrections)
 Fix words the model commonly misinterprets:
@@ -256,20 +273,33 @@ shortcuts:
 - Case-insensitive matching
 - Entire section is optional
 
-### Example Minimal Config
+### Example Configs
 
-You can have a config with just one field:
+**Minimal config** (just hotkey and one setting):
 ```yaml
-hotkey: "<ctrl>+<alt>+v"
+# configs/simple.yaml
+hotkey: "<f11>"
+avoid_newlines: true
 ```
 
-Or just dictionary:
+**Full config** (all options):
 ```yaml
+# configs/complete.yaml
+hotkey: "<f9>"
+whisper_model: "base"
+avoid_newlines: true
+
 dictionary:
   "cloud code": "Claude Code"
+
+shortcuts:
+  "my email": "you@example.com"
 ```
 
-**Note:** The config file is gitignored, so your customizations won't conflict with updates.
+**Notes:**
+- Config files in `configs/` are gitignored (except `sample.yaml`)
+- Duplicate hotkeys trigger a desktop notification
+- If no configs exist, Verbose uses default settings with F9 hotkey
 
 ## Custom Icons
 
