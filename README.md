@@ -150,16 +150,17 @@ To uninstall the service:
 All configuration is optional - defaults work out of the box.
 
 ```bash
-# Copy sample configs
+# Copy the sample config
 cp config.sample.yaml config.yaml
-cp dictionary.sample.yaml dictionary.yaml
-cp shortcuts.sample.yaml shortcuts.yaml
 
 # Edit to your preferences
 nano config.yaml
 ```
 
-**Note:** Config files are gitignored, so your customizations won't conflict with updates.
+**Note:**
+- The config file is gitignored, so your customizations won't conflict with updates
+- All sections (hotkey, whisper_model, dictionary, shortcuts, etc.) are optional
+- You can include only the parts you want to customize
 
 ## Usage
 
@@ -211,10 +212,23 @@ To uninstall:
 
 ## Configuration
 
-All configuration is optional - the program works with sensible defaults. To customize:
+All configuration is optional - the program works with sensible defaults. Everything is configured through a single `config.yaml` file.
 
-### config.yaml
-Copy from `config.sample.yaml` and edit:
+### Quick Start
+
+```bash
+# Copy the sample config
+cp config.sample.yaml config.yaml
+
+# Edit only the sections you want to customize
+nano config.yaml
+```
+
+### Configuration Sections
+
+All sections are **completely optional**. Include only what you want to customize.
+
+#### Main Settings
 - `hotkey`: Key combination to toggle recording (default: `<f9>`)
 - `whisper_model`: Model size - tiny/base/small/medium/large (default: `base`)
 - `whisper_cpp_path`: Path to whisper.cpp binary (default: `./whisper.cpp/build/bin/whisper-cli`)
@@ -222,19 +236,40 @@ Copy from `config.sample.yaml` and edit:
 - `channels`: Audio channels (default: `1`)
 - `avoid_newlines`: Strip newlines from output (default: `false`) - useful for CLI tools like Claude Code
 
-### dictionary.yaml
-Copy from `dictionary.sample.yaml` to fix words the model commonly misinterprets:
-- Format: `"wrong": "correct"`
-- Example: `"designer": "Desygner"` (fixes company name)
+#### Dictionary (Word Corrections)
+Fix words the model commonly misinterprets:
+```yaml
+dictionary:
+  "cloud code": "Claude Code"
+  "postgres": "PostgreSQL"
+```
 - Uses word-boundary matching (won't replace partial words)
+- Entire section is optional
 
-### shortcuts.yaml
-Copy from `shortcuts.sample.yaml` to add phrase expansions:
-- Format: `"phrase you say": "text that gets inserted"`
-- Example: `"my address": "Unit 3, 123 Main St..."`
+#### Shortcuts (Phrase Expansions)
+Expand spoken phrases to longer text:
+```yaml
+shortcuts:
+  "my email": "you@example.com"
+  "my address": "Unit 3, 123 Main St..."
+```
 - Case-insensitive matching
+- Entire section is optional
 
-**Note:** All `.yaml` files are gitignored. Use `.sample.yaml` files as templates.
+### Example Minimal Config
+
+You can have a config with just one field:
+```yaml
+hotkey: "<ctrl>+<alt>+v"
+```
+
+Or just dictionary:
+```yaml
+dictionary:
+  "cloud code": "Claude Code"
+```
+
+**Note:** The config file is gitignored, so your customizations won't conflict with updates.
 
 ## Custom Icons
 

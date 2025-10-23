@@ -1,22 +1,65 @@
 # Verbose Configuration - Sample File
 # Copy this file to config.yaml and customize for your setup
 # Usage: cp config.sample.yaml config.yaml
+#
+# ALL SECTIONS AND FIELDS ARE OPTIONAL
+# The app will use sensible defaults for any missing configuration
+
+# ============================================================================
+# MAIN CONFIGURATION
+# ============================================================================
 
 # Hotkey to toggle recording (evdev key names)
 # Examples: <f9>, <ctrl>+<alt>+v, <shift>+<f9>, etc.
+# Default: <f9>
 hotkey: "<f9>"
 
 # Whisper model to use (tiny, base, small, medium, large)
 # Smaller = faster but less accurate
+# Default: base
 whisper_model: "base"
 
 # Path to whisper.cpp binary
+# Default: ./whisper.cpp/build/bin/whisper-cli
 whisper_cpp_path: "./whisper.cpp/build/bin/whisper-cli"
 
 # Audio settings
+# Default: 16000 Hz, 1 channel (mono)
 sample_rate: 16000
 channels: 1
 
 # Strip newlines from transcription output (useful for CLI tools like Claude Code)
 # When enabled, newlines are replaced with spaces to keep everything on one line
+# Default: false
 avoid_newlines: false
+
+# ============================================================================
+# DICTIONARY - Word Corrections
+# ============================================================================
+# Fixes for commonly misinterpreted words
+# The model's output will have these words corrected
+# Format: "wrong": "correct"
+# Uses word-boundary matching (won't replace partial words)
+# This section is completely optional
+
+dictionary:
+  "cloud code": "Claude Code"
+  # "postgres": "PostgreSQL"
+  # "react": "React"
+  # "docker": "Docker"
+
+# ============================================================================
+# SHORTCUTS - Phrase Expansions
+# ============================================================================
+# Spoken phrases that expand to longer text
+# When you say the key phrase, it will be replaced with the value
+# Format: "phrase you say": "text that gets inserted"
+# Case-insensitive matching
+# This section is completely optional
+
+shortcuts:
+  "my address": "Unit 3, 123 Main Street, City, 12345"
+  "my email": "you@example.com"
+  "my phone": "+1 234 567 8900"
+  # "meeting link": "https://meet.google.com/abc-defg-hij"
+  # "signature": "Best regards,\nYour Name"

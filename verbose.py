@@ -60,7 +60,7 @@ class VerboseDaemon:
         self.hotkey_thread = None
 
     def load_config(self):
-        """Load configuration from config.yaml or use defaults"""
+        """Load unified configuration from config.yaml or use defaults"""
         config_path = Path(__file__).parent / 'config.yaml'
         default_config = {
             'hotkey': '<f9>',
@@ -75,7 +75,11 @@ class VerboseDaemon:
             try:
                 with open(config_path) as f:
                     loaded_config = yaml.safe_load(f) or {}
-                    # Merge with defaults (defaults override missing keys)
+                    # Extract dictionary and shortcuts if present
+                    # Remove them from main config to avoid conflicts
+                    loaded_config.pop('dictionary', None)
+                    loaded_config.pop('shortcuts', None)
+                    # Merge with defaults (loaded config overrides defaults)
                     return {**default_config, **loaded_config}
             except Exception as e:
                 print("Error loading config.yaml, using defaults: " + str(e))
@@ -83,25 +87,27 @@ class VerboseDaemon:
         return default_config
 
     def load_dictionary(self):
-        """Load word corrections from dictionary.yaml"""
-        dict_path = Path(__file__).parent / 'dictionary.yaml'
-        if dict_path.exists():
+        """Load word corrections from dictionary section in config.yaml"""
+        config_path = Path(__file__).parent / 'config.yaml'
+        if config_path.exists():
             try:
-                with open(dict_path) as f:
-                    return yaml.safe_load(f) or {}
+                with open(config_path) as f:
+                    loaded_config = yaml.safe_load(f) or {}
+                    return loaded_config.get('dictionary', {})
             except Exception as e:
-                print("Error loading dictionary.yaml, skipping: " + str(e))
+                print("Error loading dictionary from config.yaml, skipping: " + str(e))
         return {}
 
     def load_shortcuts(self):
-        """Load phrase expansions from shortcuts.yaml"""
-        shortcuts_path = Path(__file__).parent / 'shortcuts.yaml'
-        if shortcuts_path.exists():
+        """Load phrase expansions from shortcuts section in config.yaml"""
+        config_path = Path(__file__).parent / 'config.yaml'
+        if config_path.exists():
             try:
-                with open(shortcuts_path) as f:
-                    return yaml.safe_load(f) or {}
+                with open(config_path) as f:
+                    loaded_config = yaml.safe_load(f) or {}
+                    return loaded_config.get('shortcuts', {})
             except Exception as e:
-                print("Error loading shortcuts.yaml, skipping: " + str(e))
+                print("Error loading shortcuts from config.yaml, skipping: " + str(e))
         return {}
 
     def find_keyboard(self):

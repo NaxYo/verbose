@@ -124,12 +124,8 @@
 ```
 verbose/
 ├── verbose.py              # Main daemon (~300 lines)
-├── config.sample.yaml      # Config template (committed)
-├── dictionary.sample.yaml  # Dictionary template (committed)
-├── shortcuts.sample.yaml   # Shortcuts template (committed)
+├── config.sample.yaml      # Unified config template (committed)
 ├── config.yaml             # User config (gitignored)
-├── dictionary.yaml         # User dictionary (gitignored)
-├── shortcuts.yaml          # User shortcuts (gitignored)
 ├── requirements.txt        # Python dependencies
 ├── .gitignore             # Ignores local configs
 ├── README.md              # User documentation
@@ -138,42 +134,49 @@ verbose/
 
 ## Configuration System
 
-### Local Config Pattern
-All config files are **optional** and **gitignored**:
-- `.sample.yaml` files are committed to the repo as templates
-- Users copy `.sample.yaml` → `.yaml` and customize
+### Unified Config Pattern
+Single `config.yaml` file contains all configuration - **completely optional** and **gitignored**:
+- `config.sample.yaml` is committed to the repo as a template
+- Users copy `config.sample.yaml` → `config.yaml` and customize
 - Program uses sensible defaults if no config exists
+- All sections within config are optional (can include just `dictionary:` without `shortcuts:`, etc.)
+- All fields within sections are optional (can specify just `hotkey:` without other settings)
 - Prevents merge conflicts on personal settings
 
 **Benefits:**
 - ✅ Works out-of-the-box (no config required)
+- ✅ Single file to manage instead of 3 separate files
 - ✅ Users can customize without git conflicts
-- ✅ Sample files document all options
-- ✅ Local configs never accidentally committed
+- ✅ Maximum flexibility - include only what you need
+- ✅ Sample file documents all options
+- ✅ Local config never accidentally committed
 
-### config.yaml
+### config.yaml Structure
 ```yaml
+# Main settings (all optional)
 hotkey: "<f9>"                        # evdev format
 whisper_model: "base"                 # tiny/base/small/medium/large
 whisper_cpp_path: "./whisper.cpp/..." # Relative or absolute
 sample_rate: 16000                    # Whisper expects 16kHz
 channels: 1                           # Mono audio
 avoid_newlines: false                 # Strip newlines from output (for CLI tools)
+
+# Dictionary - Word corrections (entire section optional)
+dictionary:
+  "cloud code": "Claude Code"
+  "postgres": "PostgreSQL"
+
+# Shortcuts - Phrase expansions (entire section optional)
+shortcuts:
+  "my address": "Unit 3, 123 Main Street..."
+  "my email": "you@example.com"
 ```
 
-### dictionary.yaml (Word corrections)
-```yaml
-"cloud code": "Claude Code"
-"postgres": "PostgreSQL"
-```
+**Dictionary section:**
 - Uses regex word boundaries (`\b`) to avoid partial matches
 - Case-insensitive matching
 
-### shortcuts.yaml (Phrase expansions)
-```yaml
-"my address": "Unit 3, 123 Main Street..."
-"my email": "you@example.com"
-```
+**Shortcuts section:**
 - Simple string replacement
 - Case-insensitive (tries lowercase, capitalize variants)
 
