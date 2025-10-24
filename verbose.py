@@ -351,9 +351,26 @@ class VerboseDaemon:
             # Apply shortcuts (expand spoken phrases)
             text = self.apply_shortcuts(text, config)
 
-            # Remove newlines if configured
+            # Clean up newlines and spacing
+            import re
+
             if config.get('avoid_newlines', False):
+                # Replace all newlines with spaces, then collapse multiple spaces
                 text = text.replace('\n', ' ').replace('\r', ' ')
+                text = re.sub(r' +', ' ', text)
+            else:
+                # Keep newlines only after sentence-ending punctuation (. ! ?)
+                # Replace other newlines with spaces
+                # First, normalize newlines
+                text = text.replace('\r\n', '\n').replace('\r', '\n')
+
+                # Replace newlines that don't follow sentence-ending punctuation with spaces
+                # Keep newlines that follow . ! ? (with optional quotes/brackets)
+                text = re.sub(r'(?<![.!?])\n', ' ', text)
+
+                # Clean up: strip spaces from each line and collapse multiple spaces
+                text = '\n'.join(line.strip() for line in text.split('\n'))
+                text = re.sub(r' +', ' ', text)
 
             # Check if cancelled before inserting text
             if self.is_cancelled:
