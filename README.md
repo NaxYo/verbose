@@ -5,18 +5,23 @@
 Voice-to-text for Linux. 100% local, no subscriptions.
 
 ```bash
-# Install it
-sudo apt install python3-evdev python3-pyaudio python3-yaml python3-gi
+# 1. Install Python dependencies
+sudo apt install python3-evdev python3-pyaudio python3-yaml python3-gi ydotool
+
+# 2. Get whisper.cpp (OPTION A - Easiest: Download pre-compiled binary)
+#    Download from: https://github.com/ggerganov/whisper.cpp/releases
+#    Extract to ./whisper.cpp/
+#    Download a model: cd whisper.cpp && bash models/download-ggml-model.sh base
+
+# 2. Get whisper.cpp (OPTION B - Compile for better performance)
 git clone https://github.com/ggerganov/whisper.cpp.git
 cd whisper.cpp && mkdir build && cd build && cmake .. && make -j$(nproc) && cd ..
-bash ./models/download-ggml-model.sh base && cd ..
+bash models/download-ggml-model.sh base && cd ..
 
-# Run it
+# 3. Run it
 python3 verbose.py
 
-# Use it
-# Press F9, speak "hello world", press F9 again
-# Text appears at your cursor
+# 4. Use it - Press F9, speak, press F9 again
 ```
 
 ## What It Does
@@ -44,13 +49,66 @@ Press ESC anytime to cancel.
 
 ## Setup
 
-**TL;DR**: Install deps, build whisper.cpp, run it.
+### Quick Start (Pre-compiled Binary - Recommended)
 
-**Full guide**: [docs/INSTALLATION.md](docs/INSTALLATION.md)
+1. **Install system dependencies:**
+```bash
+sudo apt install python3-evdev python3-pyaudio python3-yaml python3-gi ydotool portaudio19-dev
+sudo usermod -a -G input $USER  # Required for keyboard/ydotool access
+# Log out and back in for group change to take effect
+```
 
-**Troubleshooting**: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+2. **Set up uinput permissions** (required for ydotool):
+```bash
+echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' | sudo tee /etc/udev/rules.d/80-uinput.rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
 
-**Configuration**: [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
+3. **Get whisper.cpp:**
+   - Download the latest release from [whisper.cpp releases](https://github.com/ggerganov/whisper.cpp/releases)
+   - Extract to `./whisper.cpp/` in the verbose directory
+   - Make sure the binary is at `./whisper.cpp/build/bin/whisper-cli`
+
+4. **Download a model:**
+```bash
+cd whisper.cpp
+bash models/download-ggml-model.sh base  # or tiny/small/medium/large-v1
+cd ..
+```
+
+5. **Run it:**
+```bash
+python3 verbose.py
+```
+
+### Alternative: Compile for Better Performance
+
+If pre-compiled binaries don't work or you want CPU-optimized builds:
+
+```bash
+# Install build dependencies
+sudo apt install cmake build-essential
+
+# Clone and build
+git clone https://github.com/ggerganov/whisper.cpp.git
+cd whisper.cpp
+mkdir build && cd build
+cmake ..
+make -j$(nproc)
+cd ..
+
+# Download model
+bash models/download-ggml-model.sh base
+cd ..
+```
+
+### Auto-start on Login
+
+```bash
+./install-service.sh
+```
+
+This installs Verbose as a systemd user service. See [Auto-start section](#running-on-startup) for details.
 
 ## Multiple Configs Example
 
