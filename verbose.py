@@ -432,8 +432,11 @@ class VerboseDaemon:
                 text = txt_file.read_text().strip()
                 txt_file.unlink()
 
-                # Filter out blank audio markers and empty results
-                if text and text not in ['[BLANK_AUDIO]', '']:
+                # Remove [BLANK_AUDIO] markers (can appear at end of transcription)
+                text = text.replace('[BLANK_AUDIO]', '').strip()
+
+                # Return text if not empty after filtering
+                if text:
                     return text
 
             return None
