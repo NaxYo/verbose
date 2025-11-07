@@ -33,6 +33,17 @@ channels: 1
 # Default: false
 avoid_newlines: false
 
+# Whisper transcription timeout in seconds
+# Increase this if you make long recordings that take a while to transcribe
+# Default: 300 (5 minutes)
+whisper_timeout: 300
+
+# Debug mode - keep temporary audio files when transcription fails
+# Useful for troubleshooting issues with long recordings
+# Files are saved to /tmp/verbose_debug_*.wav
+# Default: false
+debug_keep_temp_files: false
+
 # ============================================================================
 # DICTIONARY - Word Corrections
 # ============================================================================

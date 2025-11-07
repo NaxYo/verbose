@@ -95,6 +95,8 @@ class VerboseDaemon:
             'sample_rate': 16000,
             'channels': 1,
             'avoid_newlines': False,
+            'whisper_timeout': 300,  # 5 minutes for long recordings
+            'debug_keep_temp_files': False,  # Keep temp files on failure for debugging
             'dictionary': {},
             'shortcuts': {}
         }
@@ -343,6 +345,14 @@ class VerboseDaemon:
 
             # Check if cancelled after transcription
             if self.is_cancelled or not text:
+                # Keep temp file if debug mode is enabled and transcription failed
+                if config.get('debug_keep_temp_files', False) and not text:
+                    debug_path = '/tmp/verbose_debug_{}.wav'.format(os.path.basename(wav_path))
+                    import shutil
+                    shutil.copy(wav_path, debug_path)
+                    msg = "Transcription failed. Audio saved to: " + debug_path
+                    print(msg)
+                    GLib.idle_add(self.show_notification, "Verbose Debug", msg)
                 return
 
             # Apply dictionary corrections (fix misinterpreted words)
@@ -421,7 +431,7 @@ class VerboseDaemon:
                 ],
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=config.get('whisper_timeout', 300)
             )
 
             # Read output text file - whisper adds .txt to the input filename
@@ -441,8 +451,15 @@ class VerboseDaemon:
 
             return None
 
+        except subprocess.TimeoutExpired:
+            error_msg = "Whisper transcription timed out after {}s. Your recording may be too long. Increase whisper_timeout in config.".format(config.get('whisper_timeout', 300))
+            print(error_msg)
+            GLib.idle_add(self.show_notification, "Verbose Transcription Timeout", error_msg)
+            return None
         except Exception as e:
-            print("Transcription error: " + str(e))
+            error_msg = "Transcription error: " + str(e)
+            print(error_msg)
+            GLib.idle_add(self.show_notification, "Verbose Transcription Failed", error_msg)
             return None
 
     def apply_dictionary(self, text, config):
